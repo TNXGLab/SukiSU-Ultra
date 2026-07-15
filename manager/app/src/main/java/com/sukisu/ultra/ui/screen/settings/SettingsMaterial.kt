@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.RemoveModerator
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.UploadFile
@@ -193,6 +194,21 @@ fun SettingPagerMaterial(
                                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                     null
                                 )
+                            }
+                        )
+                    }
+                )
+                val forkSettingsTitle = stringResource(id = R.string.fork_settings)
+                SegmentedColumn(
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 13.dp),
+                    content = listOf {
+                        SegmentedListItem(
+                            onClick = actions.onOpenForkSettings,
+                            headlineContent = { Text(forkSettingsTitle) },
+                            supportingContent = { Text(stringResource(id = R.string.fork_settings_summary)) },
+                            leadingContent = { Icon(Icons.Filled.Timer, forkSettingsTitle) },
+                            trailingContent = {
+                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null)
                             }
                         )
                     }

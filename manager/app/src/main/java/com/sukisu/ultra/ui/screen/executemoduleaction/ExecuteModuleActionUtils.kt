@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.sukisu.ultra.R
 import com.sukisu.ultra.data.repository.ModuleRepositoryImpl
+import com.sukisu.ultra.data.repository.SettingsRepositoryImpl
 import com.sukisu.ultra.ui.util.runModuleAction
 import java.io.File
 import java.text.SimpleDateFormat
@@ -60,8 +61,10 @@ fun ExecuteModuleActionEffect(
         var currentText = text
         val mainHandler = Handler(Looper.getMainLooper())
         withContext(Dispatchers.IO) {
+            val actionTimeoutSeconds = SettingsRepositoryImpl().moduleActionTimeoutSeconds
             runModuleAction(
                 moduleId = moduleId,
+                timeoutSeconds = actionTimeoutSeconds,
                 onStdout = {
                     val tempText = "$it\n"
                     if (tempText.startsWith("[H[J")) { // clear command

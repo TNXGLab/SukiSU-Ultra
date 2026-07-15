@@ -568,4 +568,12 @@
     <string name="home_kernel_full_version">内核完整版本</string>
     <string name="settings_show_fullstatus">显示完整状态</string>
     <string name="settings_show_fullstatus_summary">在首页信息卡中显示设备的完整状态</string>
+    <string name="fork_settings">分支版本设置</string>
+    <string name="fork_settings_summary">由此分支维护的兼容性选项</string>
+    <string name="module_action_timeout">模块 Action 超时时间</string>
+    <string name="module_action_timeout_summary">Action 按钮脚本允许执行的最长时间；无限制会一直等待脚本退出。</string>
+    <string name="module_action_timeout_30_seconds">30 秒</string>
+    <string name="module_action_timeout_60_seconds">60 秒</string>
+    <string name="module_action_timeout_120_seconds">120 秒</string>
+    <string name="module_action_timeout_infinity">无限制</string>
 </resources>

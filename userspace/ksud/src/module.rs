@@ -189,6 +189,14 @@ pub fn load_sepolicy_rule() -> Result<()> {
 }
 
 pub fn exec_script<T: AsRef<Path>>(path: T, wait: bool, timeout: Duration) -> Result<()> {
+    exec_script_with_optional_timeout(path, wait, Some(timeout))
+}
+
+fn exec_script_with_optional_timeout<T: AsRef<Path>>(
+    path: T,
+    wait: bool,
+    timeout: Option<Duration>,
+) -> Result<()> {
     info!("exec {}", path.as_ref().display());
 
     let is_module_script = path.as_ref().starts_with(defs::MODULE_DIR);
@@ -246,12 +254,14 @@ pub fn exec_script<T: AsRef<Path>>(path: T, wait: bool, timeout: Duration) -> Re
         .arg(path.as_ref())
         .envs(get_common_script_envs(validated_module_id));
 
-    let result = {
-        if wait {
-            command.spawn()?.wait_timeout(timeout).map(|_| ())
-        } else {
-            command.spawn().map(|_| ())
+    let result = if wait {
+        let mut child = command.spawn()?;
+        match timeout {
+            Some(timeout) => child.wait_timeout(timeout).map(|_| ()),
+            None => child.wait().map(|_| ()),
         }
+    } else {
+        command.spawn().map(|_| ())
     };
     result.map_err(|e| anyhow!("Failed to exec {}: {e}", path.as_ref().display()))
 }
@@ -878,7 +888,7 @@ pub fn exec_stage_lua(stage: &str, wait: bool, superkey: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn run_action(id: &str) -> Result<()> {
+pub fn run_action(id: &str, timeout: Option<Duration>) -> Result<()> {
     validate_module_id(id)?;
     ksucalls::ensure_uapi_version_matched()?;
 
@@ -886,7 +896,8 @@ pub fn run_action(id: &str) -> Result<()> {
     #[cfg(all(target_os = "android", target_arch = "aarch64"))]
     {
         if Path::new(&action_script_path).exists() {
-            exec_script(&action_script_path, true, defs::EXEC_STAGE_TIMEOUT)
+            // Action 使用独立超时，避免放宽限制后影响启动阶段等脚本的安全边界。
+            exec_script_with_optional_timeout(&action_script_path, true, timeout)
         } else {
             //if no action.sh, try to run lua action
             run_lua(id, "action", false, true).map_err(|e| anyhow::anyhow!("{e}"))
@@ -894,7 +905,7 @@ pub fn run_action(id: &str) -> Result<()> {
     }
 
     #[cfg(not(all(target_os = "android", target_arch = "aarch64")))]
-    exec_script(&action_script_path, true, defs::EXEC_STAGE_TIMEOUT)
+    exec_script_with_optional_timeout(&action_script_path, true, timeout)
 }
 
 pub fn enable_module(id: &str) -> Result<()> {

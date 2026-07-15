@@ -1,6 +1,7 @@
 use anyhow::{Context, Ok, Result};
 use clap::Parser;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use android_logger::Config;
 use log::{LevelFilter, error, info};
@@ -346,6 +347,9 @@ enum Module {
     Action {
         // module id
         id: String,
+        /// 超时时间（秒）；0 表示一直等待脚本退出
+        #[arg(long, default_value_t = 10)]
+        timeout: u64,
     },
 
     /// module lua runner
@@ -783,7 +787,10 @@ pub fn run() -> Result<()> {
                 Module::Uninstall { id } => module::uninstall_module(&id),
                 Module::Enable { id } => module::enable_module(&id),
                 Module::Disable { id } => module::disable_module(&id),
-                Module::Action { id } => module::run_action(&id),
+                Module::Action { id, timeout } => {
+                    let timeout = (timeout != 0).then(|| Duration::from_secs(timeout));
+                    module::run_action(&id, timeout)
+                }
                 #[cfg(all(target_os = "android", target_arch = "aarch64"))]
                 Module::Lua { id, function } => {
                     module::run_lua(&id, &function, false, true).map_err(|e| anyhow::anyhow!("{e}"))

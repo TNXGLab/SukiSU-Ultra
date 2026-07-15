@@ -75,6 +75,7 @@ import com.sukisu.ultra.ui.screen.module.ModulePager
 import com.sukisu.ultra.ui.screen.modulerepo.ModuleRepoDetailScreen
 import com.sukisu.ultra.ui.screen.modulerepo.ModuleRepoScreen
 import com.sukisu.ultra.ui.screen.settings.SettingPager
+import com.sukisu.ultra.ui.screen.settings.fork.ForkSettingsScreen
 import com.sukisu.ultra.ui.screen.settings.tools.ToolsScreen
 import com.sukisu.ultra.ui.screen.sulog.SulogScreen
 import com.sukisu.ultra.ui.screen.superuser.SuperUserPager
@@ -201,6 +202,7 @@ class MainActivity : ComponentActivity() {
                                     entry<Route.Kpm> { KpmScreen() }
                                     entry<Route.SuSFS> { SuSFSScreen() }
                                     entry<Route.Tool> { ToolsScreen() }
+                                    entry<Route.ForkSettings> { ForkSettingsScreen() }
                                     entry<Route.UmountManager> { UmountManagerScreen() }
                                 }
                             )

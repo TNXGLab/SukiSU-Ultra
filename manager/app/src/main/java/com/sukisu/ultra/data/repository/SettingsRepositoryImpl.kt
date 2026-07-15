@@ -138,6 +138,15 @@ class SettingsRepositoryImpl : SettingsRepository {
             }
         }
 
+    override var moduleActionTimeoutSeconds: Long
+        get() = prefs.getLong("module_action_timeout_seconds", 30L)
+            .takeIf { it == 0L || it == 30L || it == 60L || it == 120L }
+            ?: 30L
+        set(value) {
+            require(value == 0L || value == 30L || value == 60L || value == 120L)
+            prefs.edit { putLong("module_action_timeout_seconds", value) }
+        }
+
     override val intentToken: String
         get() {
         val existing = prefs.getString(INTENT_TOKEN_KEY, null)

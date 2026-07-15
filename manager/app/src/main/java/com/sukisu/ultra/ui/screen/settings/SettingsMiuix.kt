@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.RemoveModerator
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Update
 import androidx.compose.material.icons.rounded.UploadFile
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -237,6 +238,26 @@ fun SettingPagerMiuix(
                                 onClick = {
                                     actions.onOpenTools()
                                 }
+                            )
+                        }
+                        val forkSettingsTitle = stringResource(id = R.string.fork_settings)
+                        Card(
+                            modifier = Modifier
+                                .padding(top = 12.dp)
+                                .fillMaxWidth()
+                        ) {
+                            ArrowPreference(
+                                title = forkSettingsTitle,
+                                summary = stringResource(id = R.string.fork_settings_summary),
+                                startAction = {
+                                    Icon(
+                                        Icons.Rounded.Timer,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                        contentDescription = forkSettingsTitle,
+                                        tint = colorScheme.onBackground
+                                    )
+                                },
+                                onClick = actions.onOpenForkSettings
                             )
                         }
                     }

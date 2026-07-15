@@ -596,4 +596,12 @@
     <string name="home_kernel_full_version">Kernel full version</string>
     <string name="settings_show_fullstatus">Show FullStatus</string>
     <string name="settings_show_fullstatus_summary">Display device FullStatus in home page info card</string>
+    <string name="fork_settings">Fork settings</string>
+    <string name="fork_settings_summary">Compatibility options maintained by this fork</string>
+    <string name="module_action_timeout">Module Action timeout</string>
+    <string name="module_action_timeout_summary">Maximum time allowed for Action button scripts. Infinity waits until the script exits.</string>
+    <string name="module_action_timeout_30_seconds">30 seconds</string>
+    <string name="module_action_timeout_60_seconds">60 seconds</string>
+    <string name="module_action_timeout_120_seconds">120 seconds</string>
+    <string name="module_action_timeout_infinity">Infinity</string>
 </resources>

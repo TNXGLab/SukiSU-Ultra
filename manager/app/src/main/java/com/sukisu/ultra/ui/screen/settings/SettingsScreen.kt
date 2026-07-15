@@ -50,6 +50,7 @@ fun SettingPager(
         onOpenAbout = { navigator.push(Route.About) },
         onSetAlternativeIcon = { enabled -> viewModel.setAlternativeIcon(context, enabled) },
         onOpenTools = { navigator.push(Route.Tool) },
+        onOpenForkSettings = { navigator.push(Route.ForkSettings) },
         onOpenKpm = { navigator.push(Route.Kpm) },
         onOpenSusfsConfig = { navigator.push(Route.SuSFS) },
     )
