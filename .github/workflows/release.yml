@@ -2,6 +2,9 @@ name: Release
 permissions:
   contents: write
   actions: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 on:
   push:
     tags:
