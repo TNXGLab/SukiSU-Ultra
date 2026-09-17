@@ -13,13 +13,14 @@ DEFAULT_KMIS=(
     "android14-6.1"
     "android15-6.6"
     "android16-6.12"
+    "android17-6.18"
 )
 DEFAULT_ABIS=("arm64-v8a")
 
 KMIS=()
 ABIS=()
 MANAGER_PACKAGE="moe.tnxg.sukisu"
-DDK_RELEASE="20260313"
+DDK_RELEASE="20260828"
 DDK_REGISTRY_VALUE="${DDK_REGISTRY:-ghcr.nju.edu.cn}"
 KEYSTORE_PATH="${KEYSTORE_FILE:-${HOME:-}/android.p12}"
 KEY_ALIAS_VALUE="${KEY_ALIAS:-app_sign}"
@@ -64,7 +65,7 @@ Options:
   --keystore <path>      PKCS12/JKS keystore used for APK and LKM identity.
                          Default: $KEYSTORE_FILE or ~/android.p12
   --alias <name>         Keystore alias. Default: $KEY_ALIAS or app_sign
-  --ddk-release <value>  ghcr.io/ylarod/ddk-min release. Default: 20260313
+  --ddk-release <value>  ghcr.io/ylarod/ddk-min release. Default: 20260828
   --ddk-registry <host>  Registry mirror for ylarod/ddk-min.
                          Default: $DDK_REGISTRY or ghcr.nju.edu.cn
   --output-name <name>   Output APK base name under dist/.
