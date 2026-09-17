@@ -283,7 +283,10 @@ jobs:
 
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/20.0/bin/sdkmanager"
+          [ -x "$SDKM" ] || SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
 
 
       # --------------------------------------------------------
@@ -440,7 +443,10 @@ jobs:
       # --------------------------------------------------------
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v4
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/20.0/bin/sdkmanager"
+          [ -x "$SDKM" ] || SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
 
 
       # --------------------------------------------------------
