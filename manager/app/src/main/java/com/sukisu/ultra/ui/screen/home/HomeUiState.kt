@@ -11,33 +11,37 @@ data class HomeUiState(
     val managerUAPIVersion: Int,
     val kernelUAPIVersion: Int?,
     val lkmMode: Boolean?,
+    val isLkmBundled: Boolean,
     val isManager: Boolean,
     val isManagerPrBuild: Boolean,
     val isKernelPrBuild: Boolean,
     val requiresNewKernel: Boolean,
-    val uapiMismatch: Boolean,
+    val requiresNewManager: Boolean,
     val isRootAvailable: Boolean,
     val isSafeMode: Boolean,
     val isLateLoadMode: Boolean,
     val checkUpdateEnabled: Boolean,
     val latestVersionInfo: LatestVersionInfo,
     val currentManagerVersionCode: Long,
-    val superuserCount: Int,
-    val moduleCount: Int,
     val systemInfo: SystemInfo,
     val showFullStatus: Boolean = true,
 ) {
     val isSELinuxPermissive: Boolean
         get() = systemInfo.selinuxStatus == "Permissive"
 
-    val isFullFeatured: Boolean
-        get() = isManager && !requiresNewKernel && isRootAvailable
+    val showGkiWarning: Boolean
+        get() = ksuVersion != null && lkmMode == false
 
-    val showRequireKernelWarning: Boolean
-        get() = isManager && requiresNewKernel && lkmMode == true
+    val showLkmUpdate: Boolean
+        get() = isManager &&
+                lkmMode == true &&
+                isLkmBundled &&
+                ksuVersion?.toLong() != currentManagerVersionCode &&
+                !requiresNewKernel &&
+                !requiresNewManager
 
-    val showUAPIMisMatchWarning: Boolean
-        get() = isManager && showRequireKernelWarning && uapiMismatch
+    val showCustomLkmBadge: Boolean
+        get() = lkmMode == true && !isLkmBundled
 
     val showRootWarning: Boolean
         get() = ksuVersion != null && !isRootAvailable
@@ -48,9 +52,6 @@ data class HomeUiState(
     val showKernelPrBuildWarning: Boolean
         get() = isManager && !isManagerPrBuild && isKernelPrBuild
 
-    val showVersionMismatchWarning: Boolean
-        get() = ksuVersion != null && ksuVersion.toLong() != currentManagerVersionCode
-
     val hasUpdate: Boolean
         get() = latestVersionInfo.versionCode > currentManagerVersionCode
 }
@@ -58,8 +59,6 @@ data class HomeUiState(
 @Immutable
 data class HomeActions(
     val onInstallClick: () -> Unit,
-    val onSuperuserClick: () -> Unit,
-    val onModuleClick: () -> Unit,
     val onOpenUrl: (String) -> Unit,
     val onJailbreakClick: () -> Unit = {},
 )

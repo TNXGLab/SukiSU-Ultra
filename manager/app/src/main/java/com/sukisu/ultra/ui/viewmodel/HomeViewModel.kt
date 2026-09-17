@@ -22,9 +22,7 @@ import com.sukisu.ultra.ui.screen.home.HomeUiState
 import com.sukisu.ultra.ui.screen.home.SystemInfo
 import com.sukisu.ultra.ui.screen.home.getManagerVersion
 import com.sukisu.ultra.ui.util.checkNewVersion
-import com.sukisu.ultra.ui.util.getModuleCount
 import com.sukisu.ultra.ui.util.getSELinuxStatusRaw
-import com.sukisu.ultra.ui.util.getSuperuserCount
 import com.sukisu.ultra.ui.util.module.LatestVersionInfo
 import com.sukisu.ultra.ui.util.resolveDeviceName
 import com.sukisu.ultra.ui.util.rootAvailable
@@ -58,15 +56,24 @@ class HomeViewModel(
         val managerVersion = getManagerVersion(ksuApp)
         val kernelFullVersion = if (isManager) Natives.getFullVersion() else null
 
+        val zygiskImplementation = if (isManager && isRootAvailable) {
+            com.sukisu.ultra.ui.screen.home.getZygiskImplementation(
+                notInstalledText = ksuApp.getString(com.sukisu.ultra.R.string.home_zygisk_not_installed),
+                disabledText = ksuApp.getString(com.sukisu.ultra.R.string.home_zygisk_disabled),
+                rebootRequiredText = ksuApp.getString(com.sukisu.ultra.R.string.home_zygisk_reboot_required),
+            )
+        } else null
+
         return HomeUiState(
             kernelVersion = kernelVersion,
             ksuVersion = ksuVersion,
             lkmMode = lkmMode,
+            isLkmBundled = lkmMode == true && Natives.isLkmBundled,
             isManager = isManager,
             isManagerPrBuild = BuildConfig.IS_PR_BUILD,
             isKernelPrBuild = Natives.isPrBuild,
-            requiresNewKernel = isManager && Natives.requireNewKernel(),
-            uapiMismatch = isManager && Natives.checkUAPIMismatch(),
+            requiresNewKernel = isManager && Natives.managerUAPIVersion > Natives.kernelUAPIVersion,
+            requiresNewManager = isManager && Natives.managerUAPIVersion < Natives.kernelUAPIVersion,
             kernelUAPIVersion = kernelUAPIVersion,
             managerUAPIVersion = managerUAPIVersion,
             isRootAvailable = isRootAvailable,
@@ -77,8 +84,6 @@ class HomeViewModel(
                 .getBoolean("show_fingerprint", true),
             latestVersionInfo = LatestVersionInfo(),
             currentManagerVersionCode = managerVersion.versionCode,
-            superuserCount = getSuperuserCount(),
-            moduleCount = getModuleCount(),
             systemInfo = SystemInfo(
                 kernelVersion = Os.uname().release,
                 managerVersion = "${managerVersion.versionName} (${managerVersion.versionCode}-${managerUAPIVersion})",
@@ -89,6 +94,7 @@ class HomeViewModel(
                 seccompStatus = runCatching {
                     Os.prctl(21 /* PR_GET_SECCOMP */, 0, 0, 0, 0)
                 }.getOrDefault(-1),
+                zygiskImplementation = zygiskImplementation,
             ),
         )
     }

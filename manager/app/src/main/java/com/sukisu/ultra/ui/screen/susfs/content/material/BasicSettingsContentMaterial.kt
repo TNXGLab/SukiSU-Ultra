@@ -1,7 +1,10 @@
 package com.sukisu.ultra.ui.screen.susfs.content.material
 
-import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -29,7 +32,6 @@ fun BasicSettingsContentMaterial(
     isLoading: Boolean,
     onAutoStartToggle: (Boolean) -> Unit,
     onShowSlotInfo: () -> Unit,
-    context: Context,
     enableHideBl: Boolean,
     onEnableHideBlChange: (Boolean) -> Unit,
     enableCleanupResidue: Boolean,
@@ -38,11 +40,21 @@ fun BasicSettingsContentMaterial(
     onEnableAvcLogSpoofingChange: (Boolean) -> Unit,
     hideSusMountsForAllProcs: Boolean,
     onHideSusMountsForAllProcsChange: (Boolean) -> Unit,
+    cmdlineOrBootconfigPath: String = "",
+    onCmdlineOrBootconfigApply: (String) -> Unit = {},
     onReset: (() -> Unit)? = null,
     onApply: (() -> Unit)? = null,
     onConfigReload: () -> Unit
 ) {
     val isAbDevice = produceState(initialValue = false) { value = isAbDevice() }.value
+
+    // SAF file picker for `/proc/cmdline` (non-GKI) or `/proc/bootconfig`
+    // (GKI) replacement. Empty MIME array lets the user choose any plain
+    // text file.
+    val cmdlineFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { onCmdlineOrBootconfigApply(it.toString()) } }
+
 
     // 说明卡片
     DescriptionCardMaterial(
@@ -132,43 +144,108 @@ fun BasicSettingsContentMaterial(
         }
     }
 
+    // Cmdline / Bootconfig 卡片
+    Card(modifier = Modifier.padding(top = 12.dp).fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Code,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.susfs_cmdline_or_bootconfig_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Text(
+                text = stringResource(R.string.susfs_cmdline_or_bootconfig_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.susfs_cmdline_or_bootconfig_current,
+                            cmdlineOrBootconfigPath.ifBlank {
+                                stringResource(R.string.susfs_cmdline_or_bootconfig_none)
+                            }
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Button(
+                onClick = {
+                    cmdlineFileLauncher.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
+                },
+                enabled = !isLoading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.FolderOpen, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.susfs_cmdline_or_bootconfig_pick_file))
+            }
+        }
+    }
+
     // 开关设置卡片
     Card(modifier = Modifier.padding(top = 12.dp).fillMaxWidth()) {
         Column {
             ListItem(
-                headlineContent = { Text(stringResource(R.string.susfs_autostart_title)) },
                 supportingContent = { Text(if (canEnableAutoStart) stringResource(R.string.susfs_autostart_description) else stringResource(R.string.susfs_autostart_requirement)) },
                 leadingContent = { Icon(Icons.Default.AutoMode, contentDescription = null) },
                 trailingContent = { Switch(checked = autoStartEnabled, onCheckedChange = onAutoStartToggle, enabled = !isLoading && canEnableAutoStart) }
-            )
+            ) {
+                Text(stringResource(R.string.susfs_autostart_title))
+            }
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text(stringResource(R.string.hide_bl_script)) },
                 supportingContent = { Text(stringResource(R.string.hide_bl_script_description)) },
                 leadingContent = { Icon(Icons.Default.Security, contentDescription = null) },
                 trailingContent = { Switch(checked = enableHideBl, onCheckedChange = onEnableHideBlChange, enabled = !isLoading) }
-            )
+            ) {
+                Text(stringResource(R.string.hide_bl_script))
+            }
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text(stringResource(R.string.cleanup_residue)) },
                 supportingContent = { Text(stringResource(R.string.cleanup_residue_description)) },
                 leadingContent = { Icon(Icons.Default.CleaningServices, contentDescription = null) },
                 trailingContent = { Switch(checked = enableCleanupResidue, onCheckedChange = onEnableCleanupResidueChange, enabled = !isLoading) }
-            )
+            ) {
+                Text(stringResource(R.string.cleanup_residue))
+            }
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text(stringResource(R.string.avc_log_spoofing)) },
                 supportingContent = { Text(stringResource(R.string.avc_log_spoofing_description)) },
                 leadingContent = { Icon(Icons.Default.VisibilityOff, contentDescription = null) },
                 trailingContent = { Switch(checked = enableAvcLogSpoofing, onCheckedChange = onEnableAvcLogSpoofingChange, enabled = !isLoading) }
-            )
+            ) {
+                Text(stringResource(R.string.avc_log_spoofing))
+            }
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text(stringResource(R.string.susfs_hide_mounts_for_all_procs_label)) },
                 supportingContent = { Text(if (hideSusMountsForAllProcs) stringResource(R.string.susfs_hide_mounts_for_all_procs_enabled_description) else stringResource(R.string.susfs_hide_mounts_for_all_procs_disabled_description)) },
                 leadingContent = { Icon(if (hideSusMountsForAllProcs) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = null) },
                 trailingContent = { Switch(checked = hideSusMountsForAllProcs, onCheckedChange = onHideSusMountsForAllProcsChange, enabled = !isLoading) }
-            )
+            ) {
+                Text(stringResource(R.string.susfs_hide_mounts_for_all_procs_label))
+            }
         }
     }
 

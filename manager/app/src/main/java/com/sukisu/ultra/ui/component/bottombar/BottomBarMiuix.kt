@@ -1,8 +1,7 @@
 package com.sukisu.ultra.ui.component.bottombar
 
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
@@ -14,10 +13,10 @@ import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -30,7 +29,8 @@ import com.sukisu.ultra.ui.component.FloatingBottomBarItem
 import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBar
 import com.sukisu.ultra.ui.theme.LocalEnableFloatingBottomBarBlur
 import com.sukisu.ultra.ui.util.BlurredBar
-import com.sukisu.ultra.ui.util.rootAvailable
+import top.yukonga.miuix.kmp.basic.Badge
+import top.yukonga.miuix.kmp.basic.BadgedBox
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.NavigationBar
 import top.yukonga.miuix.kmp.basic.NavigationBarItem
@@ -44,10 +44,10 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun BottomBarMiuix(
     blurBackdrop: LayerBackdrop?,
     backdrop: Backdrop,
+    navigationBadge: NavigationBadgeState,
     modifier: Modifier,
 ) {
-    val isManager = Natives.isManager
-    val fullFeatured = isManager && !Natives.requireNewKernel() && rootAvailable()
+    val fullFeatured = Natives.isFullFeatured()
     if (!fullFeatured) return
 
     val mainState = LocalMainPagerState.current
@@ -74,44 +74,54 @@ fun BottomBarMiuix(
                             selected = mainState.selectedPage == index,
                             onClick = {
                                 mainState.animateToPage(index)
-                            }
+                            },
+                            badge = navigationBadgeFor(index, navigationBadge),
                         )
                     }
                 }
             )
         }
     } else {
+        val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            .let { inset -> if (inset != 0.dp) 8.dp + inset else 28.dp }
         FloatingBottomBar(
             modifier = modifier
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                )
-                .padding(bottom = 12.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
-            selectedIndex = { mainState.selectedPage },
+                .pointerInput(Unit) {
+                    detectTapGestures { }
+                }
+                .padding(start = 28.dp, end = 28.dp, bottom = bottomPadding),
+            selectedIndex = mainState.selectedPage,
             onSelected = { mainState.animateToPage(it) },
             backdrop = backdrop,
             tabsCount = items.size,
             isBlurEnabled = enableFloatingBottomBarBlur,
-        ) {
+        ) { activateTab ->
             items.forEachIndexed { index, item ->
                 FloatingBottomBarItem(
+                    selected = mainState.selectedPage == index,
                     onClick = {
-                        mainState.animateToPage(index)
+                        activateTab(index)
                     },
                     modifier = Modifier.defaultMinSize(minWidth = 76.dp)
                 ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.label,
-                        tint = MiuixTheme.colorScheme.onSurface
-                    )
+                    // Icon and label take LocalContentColor so the FloatingBottomBar backdrop copy
+                    // can recolor them to the accent tone inside the indicator pill.
+                    val badge = navigationBadgeFor(index, navigationBadge, floating = true)
+                    val icon: @Composable () -> Unit = {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.label,
+                        )
+                    }
+                    if (badge != null) {
+                        BadgedBox(badge = { badge() }) { icon() }
+                    } else {
+                        icon()
+                    }
                     Text(
                         text = item.label,
                         fontSize = 11.sp,
                         lineHeight = 14.sp,
-                        color = MiuixTheme.colorScheme.onSurface,
                         maxLines = 1,
                         softWrap = false,
                         overflow = TextOverflow.Visible
@@ -130,4 +140,32 @@ enum class BottomBarDestination(
     SuperUser(R.string.superuser, Icons.Rounded.Security),
     Module(R.string.module, Icons.Rounded.Extension),
     Setting(R.string.settings, Icons.Rounded.Settings)
+}
+
+internal fun navigationBadgeFor(
+    index: Int,
+    state: NavigationBadgeState,
+    floating: Boolean = false,
+): (@Composable () -> Unit)? {
+    val badge = badgeFor(index, state) ?: return null
+    return when (badge.tone) {
+        BadgeTone.Alert -> {
+            {
+                Badge {
+                    Text(badge.count.toString())
+                }
+            }
+        }
+
+        BadgeTone.Accent -> {
+            {
+                Badge(
+                    containerColor = if (floating) MiuixTheme.colorScheme.primaryContainer else MiuixTheme.colorScheme.primary,
+                    contentColor = if (floating) MiuixTheme.colorScheme.onPrimaryContainer else MiuixTheme.colorScheme.onPrimary,
+                ) {
+                    Text(badge.count.toString())
+                }
+            }
+        }
+    }
 }

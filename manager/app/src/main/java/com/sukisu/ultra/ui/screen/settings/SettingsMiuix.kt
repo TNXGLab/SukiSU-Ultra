@@ -15,27 +15,30 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Article
+import androidx.compose.material.icons.automirrored.rounded.Rule
 import androidx.compose.material.icons.rounded.Adb
+import androidx.compose.material.icons.rounded.AdminPanelSettings
 import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.ContactPage
-import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.DeveloperMode
-import androidx.compose.material.icons.rounded.ElectricalServices
-import androidx.compose.material.icons.rounded.Fence
-import androidx.compose.material.icons.rounded.FolderDelete
+import androidx.compose.material.icons.rounded.DisplaySettings
+import androidx.compose.material.icons.rounded.FlashOn
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.LayersClear
 import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.Policy
-import androidx.compose.material.icons.rounded.RemoveCircle
-import androidx.compose.material.icons.rounded.RemoveModerator
+import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Update
-import androidx.compose.material.icons.rounded.UploadFile
+import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material.icons.rounded.SystemUpdateAlt
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,6 +54,7 @@ import com.sukisu.ultra.ui.component.miuix.SendLogDialog
 import com.sukisu.ultra.ui.component.uninstalldialog.UninstallDialog
 import com.sukisu.ultra.ui.theme.LocalEnableBlur
 import com.sukisu.ultra.ui.util.BlurredBar
+import com.sukisu.ultra.ui.util.LocaleHelper
 import com.sukisu.ultra.ui.util.rememberBlurBackdrop
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Icon
@@ -121,7 +125,7 @@ fun SettingPagerMiuix(
                             summary = stringResource(id = R.string.settings_check_update_summary),
                             startAction = {
                                 Icon(
-                                    Icons.Rounded.Update,
+                                    Icons.Rounded.SystemUpdate,
                                     modifier = Modifier.padding(end = 6.dp),
                                     contentDescription = stringResource(id = R.string.settings_check_update),
                                     tint = colorScheme.onBackground
@@ -136,7 +140,7 @@ fun SettingPagerMiuix(
                                 summary = stringResource(id = R.string.settings_check_update_summary),
                                 startAction = {
                                     Icon(
-                                        Icons.Rounded.UploadFile,
+                                        Icons.Rounded.SystemUpdateAlt,
                                         modifier = Modifier.padding(end = 6.dp),
                                         contentDescription = stringResource(id = R.string.settings_check_update),
                                         tint = colorScheme.onBackground
@@ -159,7 +163,7 @@ fun SettingPagerMiuix(
                             items = UiMode.entries.map { it.name },
                             startAction = {
                                 Icon(
-                                    Icons.Rounded.Dashboard,
+                                    Icons.Rounded.DisplaySettings,
                                     modifier = Modifier.padding(end = 6.dp),
                                     contentDescription = stringResource(id = R.string.settings_ui_mode),
                                     tint = colorScheme.onBackground
@@ -167,6 +171,26 @@ fun SettingPagerMiuix(
                             },
                             selectedIndex = if (uiState.uiMode == UiMode.Material.value) 1 else 0,
                             onSelectedIndexChange = actions.onSetUiModeIndex
+                        )
+                        val languageSystemLabel = stringResource(id = R.string.settings_language_system)
+                        val languageTags = remember { listOf(LocaleHelper.SYSTEM) + LocaleHelper.SUPPORTED_TAGS }
+                        val languageNames = remember(languageSystemLabel) {
+                            languageTags.map { if (it.isEmpty()) languageSystemLabel else LocaleHelper.displayName(it) }
+                        }
+                        OverlayDropdownPreference(
+                            title = stringResource(id = R.string.settings_language),
+                            summary = stringResource(id = R.string.settings_language_summary),
+                            items = languageNames,
+                            startAction = {
+                                Icon(
+                                    Icons.Rounded.Language,
+                                    modifier = Modifier.padding(end = 6.dp),
+                                    contentDescription = stringResource(id = R.string.settings_language),
+                                    tint = colorScheme.onBackground
+                                )
+                            },
+                            selectedIndex = languageTags.indexOf(uiState.appLanguage).coerceAtLeast(0),
+                            onSelectedIndexChange = { index -> actions.onSetLanguage(languageTags[index]) }
                         )
                         ArrowPreference(
                             title = stringResource(id = R.string.settings_theme),
@@ -209,7 +233,7 @@ fun SettingPagerMiuix(
                                 summary = stringResource(id = R.string.settings_profile_template_summary),
                                 startAction = {
                                     Icon(
-                                        Icons.Rounded.Fence,
+                                        Icons.Rounded.Description,
                                         modifier = Modifier.padding(end = 6.dp),
                                         contentDescription = profileTemplate,
                                         tint = colorScheme.onBackground
@@ -334,7 +358,7 @@ fun SettingPagerMiuix(
                                 items = suCompatModeItems,
                                 startAction = {
                                     Icon(
-                                        Icons.Rounded.RemoveModerator,
+                                        Icons.Rounded.AdminPanelSettings,
                                         modifier = Modifier.padding(end = 6.dp),
                                         contentDescription = stringResource(id = R.string.settings_sucompat),
                                         tint = colorScheme.onBackground
@@ -355,7 +379,7 @@ fun SettingPagerMiuix(
                                 summary = umountSummary,
                                 startAction = {
                                     Icon(
-                                        Icons.Rounded.RemoveCircle,
+                                        Icons.Rounded.LayersClear,
                                         modifier = Modifier.padding(end = 6.dp),
                                         contentDescription = stringResource(id = R.string.settings_kernel_umount),
                                         tint = colorScheme.onBackground
@@ -376,7 +400,7 @@ fun SettingPagerMiuix(
                                 summary = selinuxHideSummary,
                                 startAction = {
                                     Icon(
-                                        Icons.Rounded.Policy,
+                                        Icons.Rounded.Security,
                                         modifier = Modifier.padding(end = 6.dp),
                                         contentDescription = stringResource(id = R.string.settings_selinux_hide),
                                         tint = colorScheme.onBackground
@@ -428,6 +452,21 @@ fun SettingPagerMiuix(
                                 checked = uiState.isAdbRootEnabled,
                                 onCheckedChange = actions.onSetAdbRootEnabled
                             )
+                            SwitchPreference(
+                                title = stringResource(id = R.string.settings_soft_reboot),
+                                summary = stringResource(id = R.string.settings_soft_reboot_summary),
+                                startAction = {
+                                    Icon(
+                                        Icons.Rounded.RestartAlt,
+                                        modifier = Modifier.padding(end = 6.dp),
+                                        contentDescription = stringResource(id = R.string.settings_soft_reboot),
+                                        tint = if (uiState.isLateLoadMode) colorScheme.disabledOnSecondaryVariant else colorScheme.onBackground
+                                    )
+                                },
+                                enabled = !uiState.isLateLoadMode,
+                                checked = uiState.isLateLoadMode || uiState.useSoftReboot,
+                                onCheckedChange = actions.onSetUseSoftReboot
+                            )
                         }
 
                         Card(
@@ -440,7 +479,7 @@ fun SettingPagerMiuix(
                                 summary = stringResource(id = R.string.settings_umount_modules_default_summary),
                                 startAction = {
                                     Icon(
-                                        Icons.Rounded.FolderDelete,
+                                        Icons.AutoMirrored.Rounded.Rule,
                                         modifier = Modifier.padding(end = 6.dp),
                                         contentDescription = stringResource(id = R.string.settings_umount_modules_default),
                                         tint = colorScheme.onBackground
@@ -469,7 +508,7 @@ fun SettingPagerMiuix(
                                 summary = stringResource(id = R.string.settings_auto_jailbreak_summary),
                                 startAction = {
                                     Icon(
-                                        Icons.Rounded.ElectricalServices,
+                                        Icons.Rounded.FlashOn,
                                         modifier = Modifier.padding(end = 6.dp),
                                         contentDescription = stringResource(id = R.string.settings_auto_jailbreak),
                                         tint = if (uiState.isLateLoadMode) colorScheme.onBackground else colorScheme.disabledOnSecondaryVariant
@@ -536,7 +575,7 @@ fun SettingPagerMiuix(
                             title = about,
                             startAction = {
                                 Icon(
-                                    Icons.Rounded.ContactPage,
+                                    Icons.Rounded.Info,
                                     modifier = Modifier.padding(end = 6.dp),
                                     contentDescription = about,
                                     tint = colorScheme.onBackground

@@ -16,7 +16,16 @@ import com.sukisu.ultra.ui.screen.modulerepo.RepoSort
 import com.sukisu.ultra.ui.util.execKsud
 import com.sukisu.ultra.ui.util.getFeaturePersistValue
 import com.sukisu.ultra.ui.util.getFeatureStatus
+import com.sukisu.ultra.ui.util.LocaleHelper
 import java.security.SecureRandom
+
+private const val SETTINGS_PREFS = "settings"
+private const val KEY_USE_SOFT_REBOOT = "soft_reboot"
+
+/** Prefer soft reboot: always in jailbreak mode, or when the setting is enabled. */
+fun isSoftRebootPreferred(): Boolean =
+    Natives.isLateLoadMode || ksuApp.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
+        .getBoolean(KEY_USE_SOFT_REBOOT, false)
 
 class SettingsRepositoryImpl : SettingsRepository {
 
@@ -26,12 +35,16 @@ class SettingsRepositoryImpl : SettingsRepository {
     }
 
     private val prefs by lazy {
-        ksuApp.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        ksuApp.getSharedPreferences(SETTINGS_PREFS, Context.MODE_PRIVATE)
     }
 
     override var uiMode: String
         get() = prefs.getString("ui_mode", UiMode.DEFAULT_VALUE) ?: UiMode.DEFAULT_VALUE
         set(value) = prefs.edit { putString("ui_mode", value) }
+
+    override var appLanguage: String
+        get() = LocaleHelper.getCurrentLanguage(ksuApp)
+        set(value) = LocaleHelper.setLanguage(ksuApp, value)
 
     override var checkUpdate: Boolean
         get() = prefs.getBoolean("check_update", true)
@@ -80,6 +93,14 @@ class SettingsRepositoryImpl : SettingsRepository {
     override var enableFloatingBottomBarBlur: Boolean
         get() = prefs.getBoolean("enable_floating_bottom_bar_blur", false)
         set(value) = prefs.edit { putBoolean("enable_floating_bottom_bar_blur", value) }
+
+    override var enableNavigationBadge: Boolean
+        get() = prefs.getBoolean("enable_navigation_badge", true)
+        set(value) = prefs.edit { putBoolean("enable_navigation_badge", value) }
+
+    override var navigationRailExpanded: Boolean
+        get() = prefs.getBoolean("nav_rail_expanded", false)
+        set(value) = prefs.edit { putBoolean("nav_rail_expanded", value) }
 
     override var pageScale: Float
         get() = prefs.getFloat("page_scale", 1.0f)
@@ -146,6 +167,9 @@ class SettingsRepositoryImpl : SettingsRepository {
             require(value == 0L || value == 30L || value == 60L || value == 120L)
             prefs.edit { putLong("module_action_timeout_seconds", value) }
         }
+    override var useSoftReboot: Boolean
+        get() = prefs.getBoolean(KEY_USE_SOFT_REBOOT, false)
+        set(value) = prefs.edit { putBoolean(KEY_USE_SOFT_REBOOT, value) }
 
     override val intentToken: String
         get() {

@@ -7,6 +7,7 @@ use android_logger::Config;
 use log::{LevelFilter, error, info};
 
 use crate::boot_patch::{BootPatchArgs, BootRestoreArgs};
+use crate::lkm_image::BootPatchV2Args;
 use crate::module::regenerate_preinit_rc;
 #[cfg(target_arch = "aarch64")]
 use crate::susfs;
@@ -129,6 +130,11 @@ enum Commands {
 
     /// Restore boot or init_boot images patched by KernelSU
     BootRestore(BootRestoreArgs),
+
+    /// Patch KernelSU into a boot image
+    ///
+    /// Always operates on a boot image; never selects init_boot or vendor_boot.
+    BootPatchV2(BootPatchV2Args),
 
     /// Show boot information
     BootInfo {
@@ -514,6 +520,24 @@ enum Kernel {
         #[arg(short, long)]
         version: Option<String>,
     },
+    /// Spoof CPU identity (MIDR/HWCAP/vvar) at runtime
+    SpoofCpu {
+        /// Target CPU index (0..=num_possible_cpus-1)
+        #[arg(short, long)]
+        cpu: u32,
+        /// MIDR value (hex, e.g. 0x413fd0c1)
+        #[arg(short, long, value_parser = parse_hex_u32)]
+        midr: u32,
+        /// BogoMIPS value (decimal, e.g. 2400)
+        #[arg(short, long, default_value_t = 0)]
+        bogomips: u32,
+        /// Primary ELF hwcap mask (hex)
+        #[arg(long, value_parser = parse_hex_u64, default_value_t = 0)]
+        hwcap: u64,
+        /// Secondary ELF hwcap2 mask (hex)
+        #[arg(long, value_parser = parse_hex_u64, default_value_t = 0)]
+        hwcap2: u64,
+    },
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -617,6 +641,11 @@ enum Susfs {
     EnableAvcLogSpoofing {
         /// 0 to disable, 1 to enable
         enabled: u32,
+    },
+    /// Spoof /proc/cmdline (non-gki) or /proc/bootconfig (gki) from a text file
+    SetCmdlineOrBootconfig {
+        /// path to the fake cmdline/bootconfig file
+        path: String,
     },
     /// Hide SUS mounts for non-su processes
     HideSusMntsForNonSuProcs {
@@ -753,9 +782,11 @@ pub fn run() -> Result<()> {
             .with_tag("KernelSU"),
     );
 
+    ksucalls::setup_sigsys_handler();
+
     // the kernel executes su with argv[0] = "su" and replace it with us
     let arg0 = std::env::args().next().unwrap_or_default();
-    if arg0 == "su" || arg0 == "/system/bin/su" {
+    if arg0 == "su" || arg0.ends_with("/su") {
         return crate::su::root_shell();
     }
 
@@ -998,6 +1029,10 @@ pub fn run() -> Result<()> {
                 println!("uapi_version: {}", info.uapi_version);
                 println!("features: 0x{:x}", info.features);
                 println!("lkm: {}", ksucalls::is_lkm());
+                println!(
+                    "bundled: {}",
+                    (info.flags & ksu_uapi::KSU_GET_INFO_FLAG_BUNDLED) != 0
+                );
                 println!("late_load: {}", ksucalls::is_late_load());
                 println!("runtime_mode: {}", ksucalls::runtime_mode());
                 println!(
@@ -1062,6 +1097,7 @@ pub fn run() -> Result<()> {
             }
         },
         Commands::BootRestore(boot_restore) => crate::boot_patch::restore(boot_restore),
+        Commands::BootPatchV2(patch) => crate::lkm_image::patch_boot(&patch),
         Commands::Resetprop { args } => {
             let mut full_args = vec!["resetprop".to_string()];
             full_args.extend(args);
@@ -1073,7 +1109,7 @@ pub fn run() -> Result<()> {
             Kernel::Umount { command } => match command {
                 UmountOp::Add { mnt, flags } => ksucalls::umount_list_add(&mnt, flags),
                 UmountOp::Del { mnt } => ksucalls::umount_list_del(&mnt),
-                UmountOp::Wipe => ksucalls::umount_list_wipe().map_err(Into::into),
+                UmountOp::Wipe => ksucalls::umount_list_wipe(),
             },
             Kernel::NotifyModuleMounted => {
                 ksucalls::report_module_mounted();
@@ -1084,6 +1120,13 @@ pub fn run() -> Result<()> {
                 let v = version.unwrap_or_default();
                 ksucalls::set_spoof_version(&r, &v)
             }
+            Kernel::SpoofCpu {
+                cpu,
+                midr,
+                bogomips,
+                hwcap,
+                hwcap2,
+            } => ksucalls::set_spoof_cpu(cpu, midr, bogomips, hwcap, hwcap2),
         },
         Commands::Initrc { command } => match command {
             Initrc::Refresh => regenerate_preinit_rc(),
@@ -1143,6 +1186,7 @@ pub fn run() -> Result<()> {
                 Susfs::EnableAvcLogSpoofing { enabled } => {
                     susfs::enable_avc_log_spoofing(enabled != 0)
                 }
+                Susfs::SetCmdlineOrBootconfig { path } => susfs::set_cmdline_or_bootconfig(&path),
                 Susfs::HideSusMntsForNonSuProcs { enabled } => {
                     susfs::hide_sus_mnts_for_non_su_procs(enabled != 0)
                 }
@@ -1242,4 +1286,24 @@ pub fn run() -> Result<()> {
         log::error!("Error: {e:?}");
     }
     result
+}
+
+fn parse_hex_u32(s: &str) -> Result<u32, String> {
+    let s = s.trim();
+    s.strip_prefix("0x")
+        .or_else(|| s.strip_prefix("0X"))
+        .map_or_else(
+            || s.parse::<u32>().map_err(|e| format!("Invalid u32: {e}")),
+            |hex| u32::from_str_radix(hex, 16).map_err(|e| format!("Invalid hex u32: {e}")),
+        )
+}
+
+fn parse_hex_u64(s: &str) -> Result<u64, String> {
+    let s = s.trim();
+    s.strip_prefix("0x")
+        .or_else(|| s.strip_prefix("0X"))
+        .map_or_else(
+            || s.parse::<u64>().map_err(|e| format!("Invalid u64: {e}")),
+            |hex| u64::from_str_radix(hex, 16).map_err(|e| format!("Invalid hex u64: {e}")),
+        )
 }

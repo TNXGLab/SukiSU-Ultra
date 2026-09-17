@@ -448,7 +448,6 @@ fun SuSFSMiuix() {
                                 viewModel.showSlotInfoDialog(true)
                                 viewModel.loadSlotInfo(context)
                             },
-                            context = context,
                             enableHideBl = uiState.enableHideBl,
                             onEnableHideBlChange = { enabled: Boolean ->
                                 viewModel.setEnableHideBl(context, enabled)
@@ -464,6 +463,10 @@ fun SuSFSMiuix() {
                             hideSusMountsForAllProcs = uiState.hideSusMountsForAllProcs,
                             onHideSusMountsForAllProcsChange = { hideForAll: Boolean ->
                                 viewModel.setHideSusMountsForAllProcs(context, hideForAll)
+                            },
+                            cmdlineOrBootconfigPath = uiState.cmdlineOrBootconfigPath,
+                            onCmdlineOrBootconfigApply = { uri: String ->
+                                viewModel.applyCmdlineOrBootconfig(context, uri)
                             },
                             onReset = { viewModel.toggleConfirmReset(true) },
                             onApply = { viewModel.applyBasicSettings(context) },

@@ -2,6 +2,7 @@ package com.sukisu.ultra.data.repository
 
 interface SettingsRepository {
     var uiMode: String
+    var appLanguage: String
     var checkUpdate: Boolean
     var checkModuleUpdate: Boolean
     var alternativeIcon : Boolean
@@ -14,6 +15,8 @@ interface SettingsRepository {
     var enableBlur: Boolean
     var enableFloatingBottomBar: Boolean
     var enableFloatingBottomBarBlur: Boolean
+    var enableNavigationBadge: Boolean
+    var navigationRailExpanded: Boolean
     var pageScale: Float
     var enableWebDebugging: Boolean
     var moduleSortEnabledFirst: Boolean
@@ -26,6 +29,7 @@ interface SettingsRepository {
     var showFullStatus: Boolean
     var autoJailbreak: Boolean
     var moduleActionTimeoutSeconds: Long
+    var useSoftReboot: Boolean
     val intentToken: String
 
     suspend fun getSuCompatStatus(): String

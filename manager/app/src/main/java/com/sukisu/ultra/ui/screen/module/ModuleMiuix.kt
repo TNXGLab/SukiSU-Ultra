@@ -45,7 +45,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -67,7 +66,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,10 +77,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.FixedScale
@@ -102,7 +97,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Job
@@ -111,6 +105,7 @@ import kotlinx.coroutines.launch
 import com.sukisu.ultra.R
 import com.sukisu.ultra.data.model.Module
 import com.sukisu.ultra.data.model.ModuleUpdateInfo
+import com.sukisu.ultra.data.repository.isSoftRebootPreferred
 import com.sukisu.ultra.ui.component.ListPopupDefaults
 import com.sukisu.ultra.ui.component.ObserveAsEvents
 import com.sukisu.ultra.ui.component.ScrollToTopOnChange
@@ -120,7 +115,6 @@ import com.sukisu.ultra.ui.component.dialog.rememberLoadingDialog
 import com.sukisu.ultra.ui.component.miuix.SearchBarFake
 import com.sukisu.ultra.ui.component.miuix.SearchBox
 import com.sukisu.ultra.ui.component.miuix.SearchPager
-import com.sukisu.ultra.ui.component.rebootlistpopup.RebootListPopupMiuix
 import com.sukisu.ultra.ui.theme.LocalEnableBlur
 import com.sukisu.ultra.ui.theme.isInDarkTheme
 import com.sukisu.ultra.ui.util.BlurredBar
@@ -131,10 +125,10 @@ import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.DropdownImpl
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
+import top.yukonga.miuix.kmp.basic.FloatingActionButtonDefaults
 import top.yukonga.miuix.kmp.basic.HorizontalDivider
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.InfiniteProgressIndicator
 import top.yukonga.miuix.kmp.basic.ListPopupColumn
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.PopupPositionProvider
@@ -154,7 +148,7 @@ import top.yukonga.miuix.kmp.blur.layerBackdrop
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.Delete
 import top.yukonga.miuix.kmp.icon.extended.Download
-import top.yukonga.miuix.kmp.icon.extended.MoreCircle
+import top.yukonga.miuix.kmp.icon.extended.Sort
 import top.yukonga.miuix.kmp.icon.extended.Undo
 import top.yukonga.miuix.kmp.icon.extended.UploadCloud
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
@@ -199,8 +193,6 @@ fun ModulePagerMiuix(
     )
 
     val scrollBehavior = MiuixScrollBehavior()
-    var fabVisible by remember { mutableStateOf(true) }
-    var scrollDistance by remember { mutableFloatStateOf(0f) }
     val dynamicTopPadding by remember {
         derivedStateOf { 12.dp * (1f - scrollBehavior.state.collapsedFraction) }
     }
@@ -238,14 +230,17 @@ fun ModulePagerMiuix(
             is ModuleEffect.SnackBar -> {
                 // Cancel the previous reboot snackbar so a new one replaces it instead of queueing
                 snackbarJob.value?.cancel()
+                snackbarHostState.newestSnackbarData()?.dismiss()
+                // Soft reboot keeps the jailbreak and still applies module changes
+                val softReboot = isSoftRebootPreferred()
                 snackbarJob.value = scope.launch {
                     val result = snackbarHostState.showSnackbar(
                         message = event.message,
-                        actionLabel = context.getString(R.string.reboot),
+                        actionLabel = context.getString(if (softReboot) R.string.reboot_soft else R.string.reboot),
                         duration = SnackbarDuration.Long,
                     )
                     if (result == SnackbarResult.ActionPerformed) {
-                        reboot()
+                        reboot(if (softReboot) "soft_reboot" else "")
                     }
                 }
             }
@@ -260,32 +255,6 @@ fun ModulePagerMiuix(
 
     val listState = rememberLazyListState()
     val refreshTick = remember { mutableIntStateOf(0) }
-    val nestedScrollConnection = remember(uiState.installButtonVisible) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val isScrolledToEnd =
-                    (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index == listState.layoutInfo.totalItemsCount - 1
-                            && (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.size
-                        ?: 0) < listState.layoutInfo.viewportEndOffset)
-                val delta = available.y
-                if (!isScrolledToEnd) {
-                    scrollDistance += delta
-                    if (scrollDistance < -50f) {
-                        if (fabVisible) fabVisible = false
-                        scrollDistance = 0f
-                    } else if (scrollDistance > 50f) {
-                        if (!fabVisible) fabVisible = true
-                        scrollDistance = 0f
-                    }
-                }
-                return Offset.Zero
-            }
-        }
-    }
-    val offsetHeight by animateDpAsState(
-        targetValue = if (fabVisible) 0.dp else 180.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),
-        animationSpec = tween(durationMillis = 350)
-    )
 
     val backdrop = rememberBlurBackdrop(enableBlur)
     val blurActive = backdrop != null
@@ -306,7 +275,7 @@ fun ModulePagerMiuix(
                                     holdDownState = showTopPopup.value
                                 ) {
                                     Icon(
-                                        imageVector = MiuixIcons.MoreCircle,
+                                        imageVector = MiuixIcons.Sort,
                                         tint = colorScheme.onSurface,
                                         contentDescription = null
                                     )
@@ -344,9 +313,6 @@ fun ModulePagerMiuix(
                                     }
                                 )
                             }
-                            RebootListPopupMiuix(
-                                alignment = PopupPositionProvider.Align.TopEnd,
-                            )
                         },
                         navigationIcon = {
                             IconButton(
@@ -432,9 +398,6 @@ fun ModulePagerMiuix(
                 }
                 FloatingActionButton(
                     modifier = Modifier
-                        .offset {
-                            IntOffset(x = 0, y = offsetHeight.roundToPx())
-                        }
                         .padding(bottom = bottomInnerPadding + 20.dp, end = 20.dp)
                         .border(0.05.dp, colorScheme.outline.copy(alpha = 0.5f), CircleShape),
                     shadowElevation = 0.dp,
@@ -482,7 +445,15 @@ fun ModulePagerMiuix(
             }
         },
         snackbarHost = {
-            SnackbarHost(state = snackbarHostState)
+            SnackbarHost(
+                state = snackbarHostState,
+                modifier = if (uiState.installButtonVisible) {
+                    Modifier
+                } else {
+                    // No FAB slot to stack above: keep the snackbar clear of the main bottom bar.
+                    Modifier.padding(bottom = bottomInnerPadding + 20.dp)
+                },
+            )
         },
         contentWindowInsets = WindowInsets.systemBars.add(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)
     ) { innerPadding ->
@@ -513,79 +484,66 @@ fun ModulePagerMiuix(
                 top = innerPadding.calculateTopPadding() + 6.dp,
                 start = innerPadding.calculateStartPadding(layoutDirection),
                 end = innerPadding.calculateEndPadding(layoutDirection),
-                bottom = bottomInnerPadding,
+                bottom = bottomInnerPadding + FloatingActionButtonDefaults.MinHeight + 20.dp + 12.dp,
             )
-            if (modules.isEmpty() && !uiState.hasLoaded) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(
-                            top = innerPadding.calculateTopPadding(),
-                            start = innerPadding.calculateStartPadding(layoutDirection),
-                            end = innerPadding.calculateEndPadding(layoutDirection),
-                            bottom = bottomInnerPadding
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    InfiniteProgressIndicator()
-                }
-            } else {
-                PullToRefresh(
-                    isRefreshing = uiState.isRefreshing,
-                    pullToRefreshState = pullToRefreshState,
-                    onRefresh = {
-                        actions.onRefresh()
-                        refreshTick.intValue++
-                    },
-                    refreshTexts = refreshTexts,
-                    contentPadding = contentPadding,
-                ) {
-                    if (modules.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(
-                                    top = innerPadding.calculateTopPadding(),
-                                    start = innerPadding.calculateStartPadding(layoutDirection),
-                                    end = innerPadding.calculateEndPadding(layoutDirection),
-                                    bottom = bottomInnerPadding
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
+            PullToRefresh(
+                isRefreshing = uiState.isRefreshing,
+                pullToRefreshState = pullToRefreshState,
+                onRefresh = {
+                    actions.onRefresh()
+                    refreshTick.intValue++
+                },
+                refreshTexts = refreshTexts,
+                contentPadding = contentPadding,
+            ) {
+                if (modules.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                top = innerPadding.calculateTopPadding(),
+                                start = innerPadding.calculateStartPadding(layoutDirection),
+                                end = innerPadding.calculateEndPadding(layoutDirection),
+                                bottom = bottomInnerPadding
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // The refresh indicator doubles as the first-load hint;
+                        // only announce emptiness once loading has finished.
+                        if (uiState.hasLoaded) {
                             Text(
                                 stringResource(R.string.module_empty),
                                 textAlign = TextAlign.Center,
                                 color = Color.Gray,
                             )
                         }
-                    } else {
-                        val latestModules = rememberUpdatedState(modules)
-                        val latestRefreshing = rememberUpdatedState(uiState.isRefreshing)
-                        ScrollToTopOnChange(
-                            listState,
-                            uiState.sortEnabledFirst,
-                            uiState.sortActionFirst,
-                            refreshTick.intValue,
-                            isBusy = { latestRefreshing.value },
-                        ) { latestModules.value }
-                        Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
-                            ModuleList(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .scrollEndHaptic()
-                                    .overScrollVertical()
-                                    .nestedScroll(scrollBehavior.nestedScrollConnection)
-                                    .nestedScroll(nestedScrollConnection),
-                                modules = modules,
-                                updateInfoMap = uiState.updateInfo,
-                                actions = actions,
-                                onModuleAddShortcut = { module, type ->
-                                    onModuleAddShortcut(module, type)
-                                },
-                                contentPadding = contentPadding,
-                                listState = listState,
-                            )
-                        }
+                    }
+                } else {
+                    val latestModules = rememberUpdatedState(modules)
+                    val latestRefreshing = rememberUpdatedState(uiState.isRefreshing)
+                    ScrollToTopOnChange(
+                        listState,
+                        uiState.sortEnabledFirst,
+                        uiState.sortActionFirst,
+                        refreshTick.intValue,
+                        isBusy = { latestRefreshing.value },
+                    ) { latestModules.value }
+                    Box(modifier = if (backdrop != null) Modifier.layerBackdrop(backdrop) else Modifier) {
+                        ModuleList(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .scrollEndHaptic()
+                                .overScrollVertical()
+                                .nestedScroll(scrollBehavior.nestedScrollConnection),
+                            modules = modules,
+                            updateInfoMap = uiState.updateInfo,
+                            actions = actions,
+                            onModuleAddShortcut = { module, type ->
+                                onModuleAddShortcut(module, type)
+                            },
+                            contentPadding = contentPadding,
+                            listState = listState,
+                        )
                     }
                 }
             }
@@ -845,24 +803,45 @@ fun ModuleItem(
                 SubcomposeLayout { constraints ->
                     val spacingPx = 6.dp.roundToPx()
                     var nameTextLayout: TextLayoutResult? = null
-                    val metaPlaceable = if (module.metamodule) {
-                        subcompose("meta") {
-                            Text(
-                                text = "META",
-                                fontSize = 12.sp,
-                                color = updateTint,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(updateBg)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontWeight = FontWeight(750),
-                                maxLines = 1,
-                                softWrap = false
-                            )
+                    val tagsPlaceable = if (module.metamodule || module.zygisk) {
+                        subcompose("tags") {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (module.metamodule) {
+                                    Text(
+                                        text = "META",
+                                        fontSize = 12.sp,
+                                        color = updateTint,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(updateBg)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        fontWeight = FontWeight(750),
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                                if (module.zygisk) {
+                                    Text(
+                                        text = "ZYGISK",
+                                        fontSize = 12.sp,
+                                        color = updateTint,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(updateBg)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        fontWeight = FontWeight(750),
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
                         }.first().measure(Constraints(0, constraints.maxWidth, 0, constraints.maxHeight))
                     } else null
 
-                    val reserved = (metaPlaceable?.width ?: 0) + if (metaPlaceable != null) spacingPx else 0
+                    val reserved = (tagsPlaceable?.width ?: 0) + if (tagsPlaceable != null) spacingPx else 0
                     val nameMax = (constraints.maxWidth - reserved).coerceAtLeast(0)
                     val namePlaceable = subcompose("name") {
                         Text(
@@ -876,7 +855,7 @@ fun ModuleItem(
                     }.first().measure(Constraints(constraints.minWidth, nameMax, constraints.minHeight, constraints.maxHeight))
 
                     val width = (namePlaceable.width + reserved).coerceIn(constraints.minWidth, constraints.maxWidth)
-                    val height = maxOf(namePlaceable.height, metaPlaceable?.height ?: 0)
+                    val height = maxOf(namePlaceable.height, tagsPlaceable?.height ?: 0)
 
                     layout(width, height) {
                         namePlaceable.placeRelative(0, 0)
@@ -884,7 +863,7 @@ fun ModuleItem(
                             val last = (layoutRes.lineCount - 1).coerceAtLeast(0)
                             layoutRes.getLineRight(last).toInt()
                         } ?: namePlaceable.width
-                        metaPlaceable?.placeRelative(endX + spacingPx, (height - (metaPlaceable.height)) / 2)
+                        tagsPlaceable?.placeRelative(endX + spacingPx, (height - (tagsPlaceable.height)) / 2)
                     }
                 }
                 Text(

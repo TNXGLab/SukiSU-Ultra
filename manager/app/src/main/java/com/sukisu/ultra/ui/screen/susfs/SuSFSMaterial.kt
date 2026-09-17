@@ -356,7 +356,6 @@ fun SuSFSMaterial() {
                                 viewModel.showSlotInfoDialog(true)
                                 viewModel.loadSlotInfo(context)
                             },
-                            context = context,
                             enableHideBl = uiState.enableHideBl,
                             onEnableHideBlChange = { viewModel.setEnableHideBl(context, it) },
                             enableCleanupResidue = uiState.enableCleanupResidue,
@@ -365,6 +364,8 @@ fun SuSFSMaterial() {
                             onEnableAvcLogSpoofingChange = { viewModel.setEnableAvcLogSpoofing(context, it) },
                             hideSusMountsForAllProcs = uiState.hideSusMountsForAllProcs,
                             onHideSusMountsForAllProcsChange = { viewModel.setHideSusMountsForAllProcs(context, it) },
+                            cmdlineOrBootconfigPath = uiState.cmdlineOrBootconfigPath,
+                            onCmdlineOrBootconfigApply = { uri -> viewModel.applyCmdlineOrBootconfig(context, uri) },
                             onReset = { viewModel.toggleConfirmReset(true) },
                             onApply = { viewModel.applyBasicSettings(context) },
                             onConfigReload = { viewModel.reloadConfig() }
